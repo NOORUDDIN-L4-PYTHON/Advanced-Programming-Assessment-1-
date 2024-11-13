@@ -1,0 +1,163 @@
+import tkinter as tk
+from tkinter import messagebox, simpledialog
+import json
+
+def load_student_data():
+    try:
+        with open("studentMarks.txt", "r") as file:
+            students = [line.strip().split(",") for line in file.readlines()[1:]]
+            return [{"code": int(data[0]), "name": data[1], "marks": list(map(int, data[2:]))} for data in students]
+    except FileNotFoundError:
+        return []
+
+def save_student_data():
+    with open("studentMarks.txt", "w") as file:
+        file.write("Number,Name,Coursework1,Coursework2,Coursework3,Exam\n")
+        for student in students:
+            marks = ','.join(map(str, student['marks']))
+            file.write(f"{student['code']},{student['name']},{marks}\n")
+
+def calculate_data(student):
+    coursework_total = sum(student['marks'][:3])
+    total = coursework_total + student['marks'][3]
+    percentage = (total / 160) * 100
+    grade = 'A' if percentage >= 70 else 'B' if percentage >= 60 else 'C' if percentage >= 50 else 'D' if percentage >= 40 else 'F'
+    return coursework_total, total, percentage, grade
+
+def display_student_info(student):
+    coursework, total, percentage, grade = calculate_data(student)
+    return (f"{'Name:':<15} {student['name']}\n"
+            f"{'Number:':<15} {student['code']}\n"
+            f"{'Coursework Mark:':<15} {coursework}\n"
+            f"{'Exam Mark:':<15} {student['marks'][3]}\n"
+            f"{'Overall Percentage:':<15} {percentage:.2f}%\n"
+            f"{'Grade:':<15} {grade}\n")
+
+current_student_index = 0
+
+def view_all_students():
+    display_text.delete(1.0, tk.END)
+    total_percentage = sum(calculate_data(s)[2] for s in students)
+    for student in students:
+        display_text.insert(tk.END, display_student_info(student) + '\n')
+    display_text.insert(tk.END, f"Total Students: {len(students)}, Average Percentage: {total_percentage / len(students):.2f}%\n")
+
+def view_individual_student():
+    global current_student_index  
+    if current_student_index < len(students):
+        display_text.delete(1.0, tk.END)
+        display_text.insert(tk.END, display_student_info(students[current_student_index]))
+        current_student_index += 1  
+    else:
+        messagebox.showinfo("Info", "No more students to display!")
+        current_student_index = 0  
+
+def show_highest_lowest(show_highest=True):
+    student = max(students, key=lambda s: sum(s['marks'])) if show_highest else min(students, key=lambda s: sum(s['marks']))
+    display_text.delete(1.0, tk.END)
+    display_text.insert(tk.END, display_student_info(student))
+
+def sort_students():
+    global students
+    sort_order = simpledialog.askstring("Sort Order", "Enter 'asc' for ascending or 'desc' for descending:")
+    if sort_order not in ['asc', 'desc']:
+        messagebox.showinfo("Invalid Input", "Please enter 'asc' or 'desc'.")
+        return
+
+    sort_key = simpledialog.askstring("Sort By", "Enter 'name' to sort by name or 'score' to sort by total score:")
+    if sort_key not in ['name', 'score']:
+        messagebox.showinfo("Invalid Input", "Please enter 'name' or 'score'.")
+        return
+
+    if sort_key == 'name':
+        students.sort(key=lambda s: s['name'], reverse=(sort_order == 'desc'))
+    else:
+        students.sort(key=lambda s: sum(s['marks']), reverse=(sort_order == 'desc'))
+
+    view_all_students()  
+
+def add_student():
+    global students
+    code = simpledialog.askinteger("Student Code", "Enter student code (1000-9999):")
+    if not (1000 <= code <= 9999):
+        messagebox.showinfo("Invalid Input", "Please enter a valid student code.")
+        return
+
+    name = simpledialog.askstring("Student Name", "Enter student name:")
+    marks_input = simpledialog.askstring("Marks", "Enter coursework marks and exam mark separated by commas (3 coursework marks, 1 exam mark):")
+    marks = list(map(int, marks_input.split(",")))
+
+    if len(marks) != 4:
+        messagebox.showinfo("Invalid Input", "Please enter exactly 4 marks.")
+        return
+
+    students.append({"code": code, "name": name, "marks": marks})
+    save_student_data()  
+    messagebox.showinfo("Success", "Student added successfully!")
+
+def delete_student():
+    global students
+    code = simpledialog.askinteger("Student Code", "Enter student code to delete:")
+    student_to_delete = next((s for s in students if s['code'] == code), None)
+    
+    if student_to_delete:
+        students.remove(student_to_delete)
+        save_student_data()  
+        messagebox.showinfo("Success", "Student deleted successfully!")
+    else:
+        messagebox.showinfo("Error", "Student not found!")
+
+def update_student():
+    global students
+    code = simpledialog.askinteger("Student Code", "Enter student code to update:")
+    student_to_update = next((s for s in students if s['code'] == code), None)
+
+    if student_to_update:
+        field_to_update = simpledialog.askstring("Field to Update", "Enter 'name' to update name or 'marks' to update marks:")
+        if field_to_update == 'name':
+            new_name = simpledialog.askstring("New Name", "Enter new student name:")
+            student_to_update['name'] = new_name
+        elif field_to_update == 'marks':
+            new_marks_input = simpledialog.askstring("New Marks", "Enter new coursework marks and exam mark separated by commas (3 coursework marks, 1 exam mark):")
+            new_marks = list(map(int, new_marks_input.split(",")))
+            if len(new_marks) != 4:
+                messagebox.showinfo("Invalid Input", "Please enter exactly 4 marks.")
+                return
+            student_to_update['marks'] = new_marks
+        else:
+            messagebox.showinfo("Invalid Input", "Invalid field to update.")
+            return
+        
+        save_student_data() 
+        messagebox.showinfo("Success", "Student updated successfully!")
+    else:
+        messagebox.showinfo("Error", "Student not found!")
+
+window = tk.Tk()
+window.title("Student Records")
+window.geometry("600x600") 
+window.configure(bg="#f0f0f0") 
+
+students = load_student_data()
+
+entry_box = tk.Entry(window, font=("Arial", 12))
+entry_box.pack(pady=10)
+
+options_frame = tk.Frame(window, bg="#e0e0e0", padx=10, pady=10)
+options_frame.pack(pady=10)
+
+display_text = tk.Text(window, height=20, width=70, font=("Arial", 12), bg="#ffffff", bd=2, relief="groove")
+display_text.pack(pady=10)
+
+button_style = {"bg": "#4CAF50", "fg": "white", "font": ("Arial", 12), "padx": 10, "pady": 5}
+
+tk.Button(options_frame, text="View All Students", command=view_all_students, **button_style).grid(row=0, column=0, pady=5)
+tk.Button(options_frame, text="View Individual Student", command=view_individual_student, **button_style).grid(row=0, column=1, pady=5)
+tk.Button(options_frame, text="Show Highest Score", command=lambda: show_highest_lowest(True), **button_style).grid(row=1, column=0, pady=5)
+tk.Button(options_frame, text="Show Lowest Score", command=lambda: show_highest_lowest(False), **button_style).grid(row=1, column=1, pady=5)
+tk.Button(options_frame, text="Sort Students", command=sort_students, **button_style).grid(row=2, column=0, pady=5)
+tk.Button(options_frame, text="Add Student", command=add_student, **button_style).grid(row=2, column=1, pady=5)
+tk.Button(options_frame, text="Delete Student", command=delete_student, **button_style).grid(row=3, column=0, pady=5)
+tk.Button(options_frame, text="Update Student", command=update_student, **button_style).grid(row=3, column=1, pady=5)
+
+window.mainloop()

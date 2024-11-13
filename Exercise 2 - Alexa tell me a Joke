@@ -1,0 +1,39 @@
+import tkinter as tk
+import random
+
+def load_jokes(file_path):
+    """Load jokes from the specified file and return as a list of tuples."""
+    with open(file_path, 'r') as file:
+        return [line.strip().split('?') for line in file if '?' in line]
+
+def tell_joke():
+    """Select a random joke and display its setup in the label."""
+    global current_joke
+    current_joke = random.choice(jokes)
+    joke_label.config(text=current_joke[0] + "?")
+    punchline_button.config(state=tk.NORMAL)
+
+def reveal_punchline():
+    """Reveal the punchline of the current joke."""
+    joke_label.config(text=current_joke[1])
+    punchline_button.config(state=tk.DISABLED)
+
+root = tk.Tk()
+root.title("Alexa Joke Teller")
+
+jokes = load_jokes('randomJokes.txt')
+current_joke = None
+
+welcome_label = tk.Label(root, text="Welcome! Press 'Tell me a joke' to hear a random joke.")
+welcome_label.pack(pady=10)
+
+joke_label = tk.Label(root, text="", font=("Arial", 14), wraplength=300)
+joke_label.pack(pady=20)
+
+tell_joke_button = tk.Button(root, text="Tell me a joke", command=tell_joke)
+tell_joke_button.pack(pady=5)
+
+punchline_button = tk.Button(root, text="Reveal punchline", command=reveal_punchline, state=tk.DISABLED)
+punchline_button.pack(pady=5)
+
+root.mainloop()
